@@ -1,0 +1,68 @@
+services:
+  voip-container-1:
+    image: judavalente/linphone
+    container_name: voip-container-1
+    environment:
+      - DISPLAY=${DISPLAY}
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /run/user/1000/pulse:/run/user/1000/pulse
+    devices:
+      - /dev/snd:/dev/snd
+    ports:
+      - "5060:5060/udp"
+      - "7076-7100:7076-7100/udp"   # RTP do softphone 1
+    networks:
+      - redeasterisk
+
+  voip-container-2:
+    image: judavalente/linphone
+    container_name: voip-container-2
+    environment:
+      - DISPLAY=${DISPLAY}
+      - PULSE_SERVER=unix:/run/user/1000/pulse/native
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - /run/user/1000/pulse:/run/user/1000/pulse
+    devices:
+      - /dev/snd:/dev/snd
+    ports:
+      - "5061:5060/udp"
+      - "7101-7125:7101-7125/udp"   # RTP do softphone 2 (faixa diferente)
+    networks:
+      - redeasterisk
+
+  asterisk:
+    build: .
+    container_name: asterisk
+    depends_on:
+      - db
+    volumes:
+      - ./sip.conf:/etc/asterisk/sip.conf
+      - ./extensions.conf:/etc/asterisk/extensions.conf
+      - ./agi-bin:/usr/share/asterisk/agi-bin
+    ports:
+      - "5063:5060/udp"
+      - "10000-10100:10000-10100/udp"   # RTP do Asterisk
+    networks:
+      - redeasterisk
+
+  db:
+    image: mysql:8
+    container_name: db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: tts
+    volumes:
+      - dbdata:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - redeasterisk
+
+networks:
+  redeasterisk:
+    driver: bridge
+
+volumes:
+  dbdata:
